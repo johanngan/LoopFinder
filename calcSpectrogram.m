@@ -6,7 +6,8 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
 %     dt = repmat(T(2) - T(1), size(T, 1), size(T, 2));
     
     fmin = 0;
-    fmax = inf;
+    fmax = 10000;
+%     fmax = inf;
     
     stride = round( (1-obj.overlapPercent/100)*obj.tres*obj.Fs );
     nS = ceil( length(x) / stride );

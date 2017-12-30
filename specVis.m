@@ -17,7 +17,8 @@ function specVis(obj, i, c)
 %     for j = 1:length(obj.SVS{i})
     j = 0;
     keypress = 29;
-    while(keypress ~= 113 && keypress ~= 8)  % Quit at 'q' or backspace
+    while(keypress ~= 113 && keypress ~= 8 && keypress ~= 27)  % Quit at 'q', backspace, or escape
+        k = 0;
         j_old = j;
         
         if(keypress == 29 || keypress == 31 || keypress == 13)    % Right, down, or enter
@@ -57,7 +58,9 @@ function specVis(obj, i, c)
             vertical(obj.SVS{i}(obj.SVright{i})/obj.Fs, 'linestyle', '--', 'color', 'r');
         end
 
-        k = waitforbuttonpress;
-        keypress = double(get(gcf, 'CurrentCharacter'));
+        while(~k)
+            k = waitforbuttonpress;
+            keypress = double(get(gcf, 'CurrentCharacter'));
+        end
     end
 end
