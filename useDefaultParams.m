@@ -11,6 +11,7 @@ function useDefaultParams(obj)
     
     obj.minTDiff = .1;
     obj.dBLevel = 70;
+        obj.powRef = 1e-12; % Standard reference level
     obj.minRangeCutoff = .05;
     obj.maxRangeCutoff = .25;
     obj.incRangeCutoff = .05;

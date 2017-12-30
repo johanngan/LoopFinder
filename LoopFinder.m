@@ -28,6 +28,7 @@ classdef LoopFinder < handle
         % Clustering parameters
         minTDiff    % For non-maximum suppression for nBest selection from MSres values
         dBLevel     % Decibel level to set the mean volume of audio to. Anything differences where the audio is below 0 dB will be ignored.
+            powRef  % Reference level for decibel calculation
         minRangeCutoff  % Minimum percentage of the range of values for finding low-difference regions in spectrum MSE
         maxRangeCutoff  % Maximum percentage. See above.
         incRangeCutoff  % Increment for percentage if current level is too stringent. See above.
@@ -54,6 +55,15 @@ classdef LoopFinder < handle
         
         % Loop playback parameters
         timeBuffer  % Number of seconds before the loop end to begin playback, and after the loop start to end playback.
+        
+        % Spectrogram visualization
+        SVspectrograms
+        SVF
+        SVS
+        SVleft
+        SVright
+        SVoldlags
+        SVspecDiff
     end
     
     properties(Dependent)
@@ -71,6 +81,7 @@ classdef LoopFinder < handle
     methods(Access = private)
         time = findTime(obj, sample)
         sample = findSample(obj, time)
+        db = powToDB(obj, p)
         
         L = MSres(obj)  % Normalized residual mean square error over lags
         
@@ -85,7 +96,7 @@ classdef LoopFinder < handle
         [lag, L] = refineLag(obj, lag, left, right);
         [lag, s1, sDiff] = findLoopPoint(obj, lag, specDiff, left, right, S, ds)
         
-        [lag, L, s1, sDiff] = spectrumMSE(obj, lag)
+        [lag, L, s1, sDiff, spectrograms, F, S, left, right, oldlags, specDiff] = spectrumMSE(obj, lag)
         c = calcConfidence(obj, mseVals)
     end
     
@@ -118,6 +129,14 @@ classdef LoopFinder < handle
             obj.m_tau = [];
             obj.m_t1 = [];
             obj.m_t2 = [];
+            
+            obj.SVspectrograms = {};
+            obj.SVF = {};
+            obj.SVS = {};
+            obj.SVleft = {};
+            obj.SVright = {};
+            obj.SVoldlags = {};
+            obj.SVspecDiff = {};
             
             obj.useDefaultParams();
         end
@@ -414,5 +433,6 @@ classdef LoopFinder < handle
         [t1, t2, c] = findLoop(obj)
         testLoop(obj, i)
         fullPlayback(obj)
+        specVis(obj, i, c)
     end
 end
