@@ -3,6 +3,8 @@ function specVis(obj, i, c)
 % cth channel. If c is not 1 or 2, then both channels will be used. i
 % defaults to 1.
 
+    addpath('../util');
+
     if(nargin < 3)
         c = 0;
     end
@@ -16,14 +18,13 @@ function specVis(obj, i, c)
     
 %     for j = 1:length(obj.SVS{i})
     j = 0;
-    keypress = 29;
-    while(keypress ~= 113 && keypress ~= 8 && keypress ~= 27)  % Quit at 'q', backspace, or escape
-        k = 0;
+    key = "right";
+    while(key ~= "q" && key ~= "bksp" && key ~= "esc" && key ~= "ctrl-c")  % Quit at 'q', backspace, escape, or ctrl-c
         j_old = j;
         
-        if(keypress == 29 || keypress == 31 || keypress == 13)    % Right, down, or enter
+        if(key == "right" || key == "down" || key == "enter" || key == " " || key == "alt")    % Right, down, enter, space, or right click
             j = min(length(obj.SVS{i}), j + 1);
-        elseif(keypress == 28 || keypress == 30)    % Left or up
+        elseif(key == "left" || key == "up" || key == "normal")    % Left, up, or left click
             j = max(1, j - 1);
         end
         
@@ -58,9 +59,8 @@ function specVis(obj, i, c)
             vertical(obj.SVS{i}(obj.SVright{i})/obj.Fs, 'linestyle', '--', 'color', 'r');
         end
 
-        while(~k)
-            k = waitforbuttonpress;
-            keypress = double(get(gcf, 'CurrentCharacter'));
-        end
+        key = lower(string(readkey('ValidInputs', ...
+            {'right', 'left', 'up', 'down', 'enter', 'q', 'bksp', 'esc', ' ', 'ctrl-c', ...
+            'normal', 'alt'})));
     end
 end
