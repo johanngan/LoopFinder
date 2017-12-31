@@ -8,15 +8,22 @@ function testLoop(obj, i)
     fprintf('\nConfidence level: %f%%\n', 100*obj.confs(i));
     fprintf('\nTesting loop...\n');
     
-    p = audioplayer(obj.audio, obj.Fs);
-    
     sampleBuffer = round(obj.timeBuffer * obj.Fs);
     l1 = max(1, obj.s1s(i) + obj.lags(i) - sampleBuffer);
     l2 = obj.s1s(i) + obj.lags(i);
     l3 = obj.s1s(i);
     l4 = min(obj.l, obj.s1s(i) + sampleBuffer);
     
-    p.playblocking([l1, l2]);
+    % Assemble the audio clip for seamless playback
+    audioclip = [obj.audio(l1:l2, :); obj.audio(l3-1:l4, :)];
+    
+    p = audioplayer(audioclip, obj.Fs);
+    p.play;
+    pause((l2-l1)/obj.Fs);  % Pause for just the right amount of time
     fprintf('Looping...\n\n');
-    p.playblocking([l3, l4]);
+    pause((l4-l3+1)/obj.Fs);    % Pause until the playback ends
+    
+%     p.playblocking([l1, l2]);
+%     fprintf('Looping...\n\n');
+%     p.playblocking([l3, l4]);
 end
