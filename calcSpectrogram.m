@@ -16,9 +16,12 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
     interval = 1:min(stride, length(x));
     S(1) = interval(1);
     ds(1) = length(interval);
-    kbeta = 20;     % Kaiser beta
+    
+   % Get window function
+    window = windowFunction(length(interval));
+    
     [F, X] = obj.calcSpectrum(...
-        kaiser(length(interval), kbeta) .* x(interval), fmin, fmax);
+        window .* x(interval), fmin, fmax);
     P = zeros(length(F), length(S));
     P(:, 1) = X;
     
@@ -26,9 +29,30 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
         interval = 1+(i-1)*stride:min(i*stride, length(x));
         S(i) = interval(1);
         ds(i) = length(interval);
+        
+        window = windowFunction(length(interval));
         [~, P(:, i)] = obj.calcSpectrum(...
-            [kaiser(length(interval), kbeta) .* x(interval); ...
+            [window .* x(interval); ...
                 zeros(stride-length(interval), 1)], ...
             fmin, fmax);    % Zero-pad if last interval is too short
     end
+end
+
+function w = windowFunction(N)
+ % Select the N-point windowing function
+    
+    %%% Promising window functions: Rectangular, Exponential, Hamming,
+    %%% Exponential-Hann
+    w = ones(N, 1);     % Rectangular
+    
+%     kbeta = 0;  % Low sidelobe attenuation, high leakage
+%     kbeta = 20;     % Kaiser beta
+%     kbeta = 40;     % 0 leakage
+%     w = kaiser(N, kbeta);
+% 
+%     w = hamming(N);
+% 
+%     ealpha = 2;
+%     w = exp(-ealpha*abs(N-2*(0:N-1)/N))';
+%     w = w .* hann(N);
 end

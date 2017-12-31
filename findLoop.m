@@ -15,6 +15,7 @@ function [t1, t2, c] = findLoop(obj)
     obj.mses = zeros(1, obj.nBest);
     obj.s1s = zeros(size(obj.mses));
     obj.sDiffs = zeros(size(obj.mses));
+    obj.wastages = zeros(size(obj.mses));
     
     obj.SVspectrograms = cell(size(obj.mses));
     obj.SVF = cell(size(obj.mses));
@@ -25,7 +26,7 @@ function [t1, t2, c] = findLoop(obj)
     obj.SVspecDiff = cell(size(obj.mses));
     
     for j = 1:obj.nBest
-        [obj.lags(j), obj.mses(j), obj.s1s(j), obj.sDiffs(j), ...
+        [obj.lags(j), obj.mses(j), obj.s1s(j), obj.sDiffs(j), obj.wastages(j), ...
          obj.SVspectrograms{j}, obj.SVF{j}, obj.SVS{j}, ...
          obj.SVleft{j}, obj.SVright{j}, obj.SVoldlags{j}, obj.SVspecDiff{j}] = ...
             obj.spectrumMSE(obj.lags(j));
@@ -35,6 +36,8 @@ function [t1, t2, c] = findLoop(obj)
     obj.lags = obj.lags(i2);
     obj.s1s = obj.s1s(i2);
     obj.sDiffs = obj.sDiffs(i2);
+    obj.wastages = obj.wastages(i2);
+    
     obj.SVspectrograms = obj.SVspectrograms(i2);
     obj.SVF = obj.SVF(i2);
     obj.SVS = obj.SVS(i2);
@@ -54,6 +57,8 @@ function [t1, t2, c] = findLoop(obj)
     obj.lags(iClose) = obj.lags(reorder);
     obj.s1s(iClose) = obj.s1s(reorder);
     obj.sDiffs(iClose) = obj.sDiffs(reorder);
+    obj.wastages(iClose) = obj.wastages(reorder);
+    
     obj.SVspectrograms(iClose) = obj.SVspectrograms(reorder);
     obj.SVF(iClose) = obj.SVF(reorder);
     obj.SVS(iClose) = obj.SVS(reorder);

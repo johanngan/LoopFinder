@@ -17,6 +17,7 @@ classdef LoopFinder < handle
         s1s
         s2s
         mses
+        wastages    % In seconds
         confs
         sDiffs
 
@@ -93,10 +94,11 @@ classdef LoopFinder < handle
         specDiff = diffSpectra(obj, X1, X2)
         specDiffs = diffSpectrogram(obj, P1, P2)
         [left, right] = findBestCluster(obj, specDiff, ds)
+        w = calcWastage(obj, specDiff, cutoff)
         [lag, L] = refineLag(obj, lag, left, right);
         [lag, s1, sDiff] = findLoopPoint(obj, lag, specDiff, left, right, S, ds)
         
-        [lag, L, s1, sDiff, spectrograms, F, S, left, right, oldlags, specDiff] = spectrumMSE(obj, lag)
+        [lag, L, s1, sDiff, wastage, spectrograms, F, S, left, right, oldlags, specDiff] = spectrumMSE(obj, lag)
         c = calcConfidence(obj, mseVals)
     end
     
@@ -117,6 +119,7 @@ classdef LoopFinder < handle
             obj.mses = [];
             obj.confs = [];
             obj.sDiffs = [];
+            obj.wastages = [];
             
             obj.tau_est = [];
             obj.t1_est = [];

@@ -20,7 +20,7 @@ function useDefaultParams(obj)
     obj.confTol = .1;
     obj.tauTol = .5;
     
-    obj.confRegularization = .5;
+    obj.confRegularization = 2.5;   % Based on Gamma distribution estimate for MSE
     
     obj.timeBuffer = 4;
 end

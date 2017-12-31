@@ -1,4 +1,4 @@
-function [lag, L, s1, sDiff, spectrograms, F, S, left, right, oldlag, specDiff] = spectrumMSE(obj, lag)
+function [lag, L, s1, sDiff, wastage, spectrograms, F, S, left, right, oldlag, specDiff] = spectrumMSE(obj, lag)
 % Analyzes the spectrum MSE of a given lag value and returns the MSE, and
 % the estimated loop start point and its sample difference
     
@@ -24,6 +24,9 @@ function [lag, L, s1, sDiff, spectrograms, F, S, left, right, oldlag, specDiff] 
     end
     
     [left, right] = obj.findBestCluster(specDiff, ds);
+    cutoff = 2*min(median(specDiff(left:right)), mean(specDiff(left:right)));
+    wastage = obj.calcWastage(specDiff, cutoff);
+    
     oldlag = lag;
     lag = obj.refineLag(lag, S(left), S(right)+ds(right)-1);
     [lag, s1, sDiff] = obj.findLoopPoint(lag, specDiff, left, right, S, ds);
