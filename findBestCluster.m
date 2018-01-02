@@ -1,4 +1,4 @@
-function [left, right] = findBestCluster(obj, specDiff, ds)
+function [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
 % Finds the region of time with the smallest values of specDiff, where a
 % region must be at least obj.minLoopLength seconds long
 %
@@ -9,17 +9,34 @@ function [left, right] = findBestCluster(obj, specDiff, ds)
 
     % EXPERIMENTAL - keep taking the next best specDiff until a long enough
     % interval is found
-    [~, i] = sort(specDiff, 'ascend');
-    k = 2;
-    best2 = i(1:2);
-    left = min(best2);
-    right = max(best2);
+    [sortSD, i] = sort(specDiff, 'ascend');
+    minSD = sortSD(1);
+%     k = 2;
+    k = round(obj.minLoopLength / obj.stride);
+%     bestk = i(1:min(k, length(specDiff)));
+%     left = min(bestk);
+%     right = max(bestk);
+
+    m = 2;  % Median multiplier
+    cutoff = m*(median(sortSD(1:k))-minSD) + minSD;
+    left = find(specDiff <= cutoff, 1, 'first');
+    right = find(specDiff <= cutoff, 1, 'last');
     
     while(sum(dt(left:right)) < obj.minLoopLength)
-        k = k+1;
         
-        left = min(left, i(k));
-        right = max(right, i(k));
+        if(k < length(specDiff))
+            k = k+1;
+            cutoff = m*(median(sortSD(1:k))-minSD) + minSD;
+        else
+            % Continue in the case of failure by slowly raising the bar
+            cutoff = sortSD(find(sortSD > cutoff, 1, 'first'));
+        end
+        
+        left = find(specDiff <= cutoff, 1, 'first');
+        right = find(specDiff <= cutoff, 1, 'last');
+        
+%         left = min(left, i(k));
+%         right = max(right, i(k));
     end
     
     

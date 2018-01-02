@@ -5,7 +5,7 @@ function [lag, L] = refineLag(obj, lag, sLeft, sRight)
 % Normalize by overlap length, but not by average power anymore, which
 % shouldn't matter too much.
 
-    addpath('wavematch/cxcorr_fft');
+%     addpath('wavematch/cxcorr_fft');
     
     msRes = zeros(1, 2*(sRight-sLeft+1)-1);
     

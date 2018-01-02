@@ -1,7 +1,7 @@
 function L = MSres(obj)
 % Normalized residual mean square error over lags
 
-    addpath('wavematch/cxcorr_fft');
+%     addpath('wavematch/cxcorr_fft');
     
     L = zeros(1, obj.l);
     for c = 1:obj.nChannels

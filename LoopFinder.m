@@ -18,6 +18,9 @@ classdef LoopFinder < handle
         s2s
         mses
         wastages    % In seconds
+        matchLengths    % In seconds
+        rawMSres    % Normalized by noise level, but not by overlap width
+        nMSres      % Normalized by both noise level and overlap width
         confs
         sDiffs
 
@@ -63,6 +66,7 @@ classdef LoopFinder < handle
         SVS
         SVleft
         SVright
+        SVcutoff
         SVoldlags
         SVspecDiff
     end
@@ -72,6 +76,9 @@ classdef LoopFinder < handle
         l           % Number of samples
         duration    % Length of audio in seconds
         nChannels
+        
+        % Chunking
+        stride  % Stride for spectrogram windows, in seconds
         
         % Loop point results
         taus    % Loop lengths in seconds
@@ -93,19 +100,30 @@ classdef LoopFinder < handle
         
         specDiff = diffSpectra(obj, X1, X2)
         specDiffs = diffSpectrogram(obj, P1, P2)
-        [left, right] = findBestCluster(obj, specDiff, ds)
-        w = calcWastage(obj, specDiff, cutoff)
+        [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
+        w = calcWastage(obj, specDiff, ds, left, right, cutoff)
+        l = calcMatchLength(obj, specDiff, ds, left, right, cutoff)
         [lag, L] = refineLag(obj, lag, left, right);
         [lag, s1, sDiff] = findLoopPoint(obj, lag, specDiff, left, right, S, ds)
         
-        [lag, L, s1, sDiff, wastage, spectrograms, F, S, left, right, oldlags, specDiff] = spectrumMSE(obj, lag)
+        [lag, L, s1, sDiff, wastage, matchLength, ...
+            spectrograms, F, S, left, right, cutoff, oldlags, specDiff] ...
+            = spectrumMSE(obj, lag)
         c = calcConfidence(obj, mseVals)
     end
     
     methods     % Public methods
         % ctor
         function obj = LoopFinder(audio, Fs)
-            if(nargin < 2)
+            addpath('../util');
+            addpath('wavematch/cxcorr_fft');
+            addpath('tracks');
+            
+            if(nargin == 1)
+                [audio, Fs] = audioread(audio);
+            end
+            
+            if(nargin < 1)
                 audio = [];
                 Fs = [];
             end
@@ -120,6 +138,8 @@ classdef LoopFinder < handle
             obj.confs = [];
             obj.sDiffs = [];
             obj.wastages = [];
+            obj.matchLengths = [];
+            obj.rawMSres = [];
             
             obj.tau_est = [];
             obj.t1_est = [];
@@ -138,6 +158,7 @@ classdef LoopFinder < handle
             obj.SVS = {};
             obj.SVleft = {};
             obj.SVright = {};
+            obj.SVcutoff = {};
             obj.SVoldlags = {};
             obj.SVspecDiff = {};
             
@@ -152,6 +173,10 @@ classdef LoopFinder < handle
         function loadAudio(obj, audio, Fs)            
             obj.audio = audio;
             obj.Fs = Fs;
+        end
+        
+        function readFile(obj, filename)
+            [obj.audio, obj.Fs] = audioread(filename);
         end
         
         function set.leftIgnore(obj, leftIgnore)
@@ -428,14 +453,20 @@ classdef LoopFinder < handle
             t2s = obj.findTime(obj.s2s);
         end
         
+        function stride = get.stride(obj)
+            stride = obj.tres * (1 - obj.overlapPercent/100);
+        end
+        
         
         
         
         
         useDefaultParams(obj)
         [t1, t2, c] = findLoop(obj)
+        [t1, t2, c] = loop(obj, filename)
         testLoop(obj, i)
         fullPlayback(obj)
         specVis(obj, i, c)
+        waveVis(obj, i, c)
     end
 end

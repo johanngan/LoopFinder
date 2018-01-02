@@ -3,7 +3,17 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
 
 %     [P, F, T] = pspectrum(x, obj.Fs, 'spectrogram', ...
 %         'TimeResolution', obj.tres, 'OverlapPercent', obj.overlapPercent);
-%     dt = repmat(T(2) - T(1), size(T, 1), size(T, 2));
+%     sRights = zeros(size(T));
+%     for t = 1:length(T)-1
+%         sRights(t) = obj.findSample(mean(T(t:t+1)));
+%     end
+%     sRights(end) = length(x);
+%     S = zeros(size(T));
+%     S(1) = 1;
+%     S(2:end) = sRights(1:end-1) + 1;
+%     ds = sRights - S;
+%     
+%     return
     
     fmin = 0;
     fmax = 10000;

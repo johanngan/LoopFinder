@@ -18,7 +18,8 @@ function useDefaultParams(obj)
     obj.cutoffRad = 2;
     
     obj.confTol = .1;
-    obj.tauTol = .5;
+%     obj.tauTol = .5;
+    obj.tauTol = obj.tres / 2;  % Base it on window size => resolving power
     
     obj.confRegularization = 2.5;   % Based on Gamma distribution estimate for MSE
     
