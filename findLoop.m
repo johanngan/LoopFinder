@@ -63,7 +63,7 @@ function [t1, t2, c] = findLoop(obj)
      % importance (top 95%). CHANGE: reordering based on match length AND
      % wastage
     confBand = .95;
-    mseMult = 1.5;
+    mseMult = 2;
     
 %     iTop = 1:find(cumsum(obj.confs) >= confBand, 1);
     iTop = find(obj.mses <= mseMult*obj.mses(1));

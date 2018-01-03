@@ -5,6 +5,7 @@ classdef LoopFinder < handle
         % Data
         audio
         Fs
+        avgVol
         
         % Loop selection parameters
         leftIgnore  % In seconds
@@ -128,9 +129,6 @@ classdef LoopFinder < handle
                 Fs = [];
             end
             
-            obj.audio = audio;
-            obj.Fs = Fs;
-            
             obj.lags = [];
             obj.s1s = [];
             obj.s2s = [];
@@ -163,6 +161,7 @@ classdef LoopFinder < handle
             obj.SVspecDiff = {};
             
             obj.useDefaultParams();
+            obj.loadAudio(audio, Fs);
         end
         
         
@@ -173,10 +172,13 @@ classdef LoopFinder < handle
         function loadAudio(obj, audio, Fs)            
             obj.audio = audio;
             obj.Fs = Fs;
+            
+            obj.avgVol = obj.powToDB(mean(sum(audio.^2, 2)));
         end
         
         function readFile(obj, filename)
-            [obj.audio, obj.Fs] = audioread(filename);
+            [audioIn, FsIn] = audioread(filename);
+            obj.loadAudio(audioIn, FsIn);
         end
         
         function set.leftIgnore(obj, leftIgnore)
@@ -218,6 +220,13 @@ classdef LoopFinder < handle
         
         function set.dBLevel(obj, dBLevel)
             obj.dBLevel = dBLevel;
+        end
+        
+        function set.powRef(obj, powRef)
+            obj.powRef = powRef;
+            
+            % Recalculate average volume level
+            obj.avgVol = obj.powToDB(mean(sum(obj.audio.^2, 2)));
         end
         
         function set.minRangeCutoff(obj, minRangeCutoff)
