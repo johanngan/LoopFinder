@@ -464,7 +464,7 @@ classdef LoopFinder < handle
         useDefaultParams(obj)
         [t1, t2, c] = findLoop(obj)
         [t1, t2, c] = loop(obj, filename)
-        testLoop(obj, i)
+        testLoop(obj, i, timeBuffer, t1, t2)
         fullPlayback(obj)
         specVis(obj, i, c)
         waveVis(obj, i, c)

@@ -25,8 +25,10 @@ function [lag, L, s1, sDiff, wastage, matchLength, spectrograms, F, S, left, rig
     
     [left, right, cutoff] = obj.findBestCluster(specDiff, ds);
 %     cutoff = 2*min(median(specDiff(left:right)), mean(specDiff(left:right)));
-    wastage = obj.calcWastage(specDiff, ds, left, right, cutoff);
-    matchLength = obj.calcMatchLength(specDiff, ds, left, right, cutoff);
+    % For cutoff, try using a median multiplier of min(10, length(specDiff)/2)
+    
+    wastage = obj.calcWastage(specDiff, ds, left, right, cutoff);   % TO TRY using a lighter cutoff? 2x?
+    matchLength = obj.calcMatchLength(specDiff, ds, left, right, cutoff);   % TO TRY using a lighter cutoff?
     
     
     oldlag = lag;

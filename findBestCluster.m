@@ -39,6 +39,20 @@ function [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
 %         right = max(right, i(k));
     end
     
+    % Cutoff for wastage and matchLength calculation
+    rMedian = cutoff - min(specDiff);
+    kMedian = min(10, length(specDiff)/2);
+    cutoff1 = min(specDiff) + kMedian*rMedian;
+    
+    kMax = round(obj.minLoopLength / obj.stride);
+    maxSDs = sortSD(end-kMax+1:end);
+    mRange = 0.05;
+    cutoff2 = mRange*(median(maxSDs) - median(sortSD(1:k))) + median(sortSD(1:k));
+    
+    cutoff3 = 5;
+    
+    cutoff = max([cutoff1, cutoff2, cutoff3]);
+    
     
     % This has trouble with songs like Pokemon Square
 %     % EXPERIMENTAL - find the interval of length obj.minLoopLength with the
