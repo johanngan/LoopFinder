@@ -117,7 +117,8 @@ classdef LoopFinder < handle
         w = calcWastage(obj, specDiff, sSize, left, right, cutoff)
         l = calcMatchLength(obj, specDiff, sSize, left, right, cutoff)
         [lag, L] = refineLag(obj, lag, left, right);
-        [lag, s1, sDiff] = findLoopPoint(obj, lag, specDiff, left, right, S, ds)
+        [lag, s1, sDiff] = findLoopPoint(obj, lag, s1s)
+        [lag, s1, sDiff] = findLoopPointSpecDiff(obj, lag, specDiff, left, right, S, ds)
         
         [lag, L, s1, sDiff, wastage, matchLength, ...
             spectrograms, F, S, left, right, cutoff, cutoff2, oldlags, specDiff] ...

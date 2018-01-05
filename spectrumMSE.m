@@ -33,7 +33,7 @@ function [lag, L, s1, sDiff, wastage, matchLength, spectrograms, F, S, left, rig
     
     oldlag = lag;
     lag = obj.refineLag(lag, S(left), S(right)+ds(right)-1);
-    [lag, s1, sDiff] = obj.findLoopPoint(lag, specDiff, left, right, S, ds);
+    [lag, s1, sDiff] = obj.findLoopPointSpecDiff(lag, specDiff, left, right, S, ds);
 %     L = mean(specDiff(left:right));
     
     % TO TRY: average the bottom 90% to possibly remove any momentary noise
