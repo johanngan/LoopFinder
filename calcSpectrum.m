@@ -32,35 +32,35 @@ function [F, X] = calcSpectrum(obj, x, fmin, fmax)
     r = find(F >= fmin & F <= fmax);
     F = F(r)';
     X = X(r);
-    X = smoothen(X, round(length(X)/1024));
+    X = obj.smoothen(X, round(length(X)/1024));
 end
 
-function ys = smoothen(y, rAvg)
-% rAvg is the radius around each point to average
-
-    l = length(y);
-    ys = zeros(size(y));
-    
+% function ys = smoothen(y, rAvg)
+% % rAvg is the radius around each point to average
+% 
+%     l = length(y);
+%     ys = zeros(size(y));
+%     
+% %     for i = 1:l
+% %         ys(i) = mean(y(max(i-rAvg, 1):min(i+rAvg, l)));
+% %     end
+%     
+%     top = sum(y(1:min(rAvg, l)));
+%     bottom = min(rAvg, l);
 %     for i = 1:l
-%         ys(i) = mean(y(max(i-rAvg, 1):min(i+rAvg, l)));
+%         right = i+rAvg;
+%         left = i-rAvg;
+%         
+%         if(right <= l)
+%             top = top + y(right);
+%             bottom = bottom + 1;
+%         end
+%         
+%         if(left > 1)
+%             top = top - y(left-1);
+%             bottom = bottom - 1;
+%         end
+%         
+%         ys(i) = top / bottom;
 %     end
-    
-    top = sum(y(1:min(rAvg, l)));
-    bottom = min(rAvg, l);
-    for i = 1:l
-        right = i+rAvg;
-        left = i-rAvg;
-        
-        if(right <= l)
-            top = top + y(right);
-            bottom = bottom + 1;
-        end
-        
-        if(left > 1)
-            top = top - y(left-1);
-            bottom = bottom - 1;
-        end
-        
-        ys(i) = top / bottom;
-    end
-end
+% end

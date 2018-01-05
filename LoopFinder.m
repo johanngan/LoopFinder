@@ -46,7 +46,7 @@ classdef LoopFinder < handle
         confRegularization  % Regularization for denominator in confidence value calculation.
         
         % Manual estimation parameters
-        tau_est
+        tau_est     % REMOVE THIS
         t1_est
         t2_est
         
@@ -54,9 +54,9 @@ classdef LoopFinder < handle
         r_t1
         r_t2
         
-        m_tau   % Penalty magnitude
-        m_t1
-        m_t2
+        p_tau   % Penalty magnitude (0-1)
+        p_t1
+        p_t2
         
         % Loop playback parameters
         timeBuffer  % Number of seconds before the loop end to begin playback, and after the loop start to end playback.
@@ -68,8 +68,12 @@ classdef LoopFinder < handle
         SVleft
         SVright
         SVcutoff
+        SVcutoff2
         SVoldlags
         SVspecDiff
+        
+        fadeRemoved     % Internal flag
+        isFade  % Configuration flag to specify that the track has a fade
     end
     
     properties(Dependent)
@@ -79,12 +83,17 @@ classdef LoopFinder < handle
         nChannels
         
         % Chunking
-        stride  % Stride for spectrogram windows, in seconds
+        stride  % Strides for spectrogram windows, in seconds
         
         % Loop point results
         taus    % Loop lengths in seconds
         t1s     % Loop start points in seconds
         t2s     % Loop end points in seconds
+        
+        % Estimation sensitivity
+        m_tau   % Slopes for triangular weighting, per second deviation
+        m_t1
+        m_t2
     end
     
     methods(Access = private)
@@ -92,25 +101,33 @@ classdef LoopFinder < handle
         sample = findSample(obj, time)
         db = powToDB(obj, p)
         
+        removeFade(obj)
+        
         L = MSres(obj)  % Normalized residual mean square error over lags
         
         [vals, idx] = nMinCluster(obj, x)
         
+        ys = smoothen(obj, y, rAvg)
         [F, X] = calcSpectrum(obj, x, fmin, fmax)
-        [P, F, S, ds] = calcSpectrogram(obj, x)
+        [P, F, S, ds, sSize] = calcSpectrogram(obj, x)
         
         specDiff = diffSpectra(obj, X1, X2)
         specDiffs = diffSpectrogram(obj, P1, P2)
-        [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
-        w = calcWastage(obj, specDiff, ds, left, right, cutoff)
-        l = calcMatchLength(obj, specDiff, ds, left, right, cutoff)
+        [left, right, cutoff, cutoff2] = findBestCluster(obj, specDiff, sSize)
+        w = calcWastage(obj, specDiff, sSize, left, right, cutoff)
+        l = calcMatchLength(obj, specDiff, sSize, left, right, cutoff)
         [lag, L] = refineLag(obj, lag, left, right);
         [lag, s1, sDiff] = findLoopPoint(obj, lag, specDiff, left, right, S, ds)
         
         [lag, L, s1, sDiff, wastage, matchLength, ...
-            spectrograms, F, S, left, right, cutoff, oldlags, specDiff] ...
+            spectrograms, F, S, left, right, cutoff, cutoff2, oldlags, specDiff] ...
             = spectrumMSE(obj, lag)
         c = calcConfidence(obj, mseVals)
+        
+        
+        [t1, t2, c] = findLoopEstEndpoints(obj)
+        [t1, t2, c] = findLoopEstLeftEndpoint(obj)
+        [t1, t2, c] = findLoopEstRightEndpoint(obj)
     end
     
     methods     % Public methods
@@ -143,13 +160,13 @@ classdef LoopFinder < handle
             obj.t1_est = [];
             obj.t2_est = [];
             
-            obj.r_tau = [];
-            obj.r_t1 = [];
-            obj.r_t2 = [];
-            
-            obj.m_tau = [];
-            obj.m_t1 = [];
-            obj.m_t2 = [];
+%             obj.r_tau = [];
+%             obj.r_t1 = [];
+%             obj.r_t2 = [];
+%             
+%             obj.p_tau = [];
+%             obj.p_t1 = [];
+%             obj.p_t2 = [];
             
             obj.SVspectrograms = {};
             obj.SVF = {};
@@ -157,6 +174,7 @@ classdef LoopFinder < handle
             obj.SVleft = {};
             obj.SVright = {};
             obj.SVcutoff = {};
+            obj.SVcutoff2 = {};
             obj.SVoldlags = {};
             obj.SVspecDiff = {};
             
@@ -169,11 +187,19 @@ classdef LoopFinder < handle
         
         
         % Setters
-        function loadAudio(obj, audio, Fs)            
+        function loadAudio(obj, audio, Fs)
+            if(any(size(audio) ~= size(obj.audio)) || ...
+               ~all(all(audio == obj.audio)))
+                obj.tau_est = [];
+                obj.t1_est = [];
+                obj.t2_est = [];
+            end
+            
             obj.audio = audio;
             obj.Fs = Fs;
             
             obj.avgVol = obj.powToDB(mean(sum(audio.^2, 2)));
+            obj.fadeRemoved = false;
         end
         
         function readFile(obj, filename)
@@ -281,16 +307,25 @@ classdef LoopFinder < handle
             obj.r_t2 = r_t2;
         end
         
-        function set.m_tau(obj, m_tau)
-            obj.m_tau = m_tau;
+        function set.p_tau(obj, p_tau)
+            if(p_tau < 0 || p_tau > 1)
+                error('Penalty must be a number between 0 and 1.');
+            end
+            obj.p_tau = p_tau;
         end
         
-        function set.m_t1(obj, m_t1)
-            obj.m_t1 = m_t1;
+        function set.p_t1(obj, p_t1)
+            if(p_t1 < 0 || p_t1 > 1)
+                error('Penalty must be a number between 0 and 1.');
+            end
+            obj.p_t1 = p_t1;
         end
         
-        function set.m_t2(obj, m_t2)
-            obj.m_t2 = m_t2;
+        function set.p_t2(obj, p_t2)
+            if(p_t2 < 0 || p_t2 > 1)
+                error('Penalty must be a number between 0 and 1.');
+            end
+            obj.p_t2 = p_t2;
         end
         
         function set.timeBuffer(obj, timeBuffer)
@@ -422,16 +457,28 @@ classdef LoopFinder < handle
             r_t2 = obj.r_t2;
         end
         
+        function p_tau = get.p_tau(obj)
+            p_tau = obj.p_tau;
+        end
+        
+        function p_t1 = get.p_t1(obj)
+            p_t1 = obj.p_t1;
+        end
+        
+        function p_t2 = get.p_t2(obj)
+            p_t2 = obj.p_t2;
+        end
+        
         function m_tau = get.m_tau(obj)
-            m_tau = obj.m_tau;
+            m_tau = tand(obj.p_tau * 90);
         end
         
         function m_t1 = get.m_t1(obj)
-            m_t1 = obj.m_t1;
+            m_t1 = tand(obj.p_t1 * 90);
         end
         
         function m_t2 = get.m_t2(obj)
-            m_t2 = obj.m_t2;
+            m_t2 = tand(obj.p_t2 * 90);
         end
         
         function timeBuffer = get.timeBuffer(obj)
@@ -477,5 +524,6 @@ classdef LoopFinder < handle
         fullPlayback(obj)
         specVis(obj, i, c)
         waveVis(obj, i, c)
+        fadeLength = detectFade(obj, audio, Fs)
     end
 end

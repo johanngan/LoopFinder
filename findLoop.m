@@ -4,6 +4,27 @@ function [t1, t2, c] = findLoop(obj)
 %
 % INTERNAL LOOP POINT RESULT FIELDS ARE CHANGED WHEN THIS METHOD IS CALLED.
 
+    % Remove fade if needed
+    if(obj.isFade && ~obj.fadeRemoved)
+        obj.removeFade();
+    end
+    
+    % Use the endpoint estimates if given
+    if(~isempty(obj.t1_est) && ~isempty(obj.t2_est))
+        [t1, t2, c] = obj.findLoopEstEndpoints();
+        return;
+    end
+    
+    if(~isempty(obj.t1_est) && isempty(obj.t2_est))
+        [t1, t2, c] = obj.findLoopEstLeftEndpoint();
+        return;
+    end
+    
+    if(isempty(obj.t1_est) && ~isempty(obj.t2_est))
+        [t1, t2, c] = obj.findLoopEstRightEndpoint();
+        return;
+    end
+
     % Initial selection via normalized MSres
     msres = obj.MSres();
     sLeftIgnore = round(obj.leftIgnore*obj.Fs);
@@ -30,11 +51,12 @@ function [t1, t2, c] = findLoop(obj)
     obj.SVoldlags = cell(size(obj.mses));
     obj.SVspecDiff = cell(size(obj.mses));
     obj.SVcutoff = cell(size(obj.mses));
+    obj.SVcutoff2 = cell(size(obj.mses));
     
     for j = 1:obj.nBest
         [obj.lags(j), obj.mses(j), obj.s1s(j), obj.sDiffs(j), obj.wastages(j), obj.matchLengths(j), ...
          obj.SVspectrograms{j}, obj.SVF{j}, obj.SVS{j}, ...
-         obj.SVleft{j}, obj.SVright{j}, obj.SVcutoff{j}, ...
+         obj.SVleft{j}, obj.SVright{j}, obj.SVcutoff{j}, obj.SVcutoff2{j}, ...
          obj.SVoldlags{j}, obj.SVspecDiff{j}] = ...
             obj.spectrumMSE(obj.lags(j));
     end
@@ -63,17 +85,44 @@ function [t1, t2, c] = findLoop(obj)
      % importance (top 95%). CHANGE: reordering based on match length AND
      % wastage
     confBand = .95;
-    mseMult = 2;
+    mseMult = 2;    % TO TRY: 1.5 again?
+    
     
 %     iTop = 1:find(cumsum(obj.confs) >= confBand, 1);
     iTop = find(obj.mses <= mseMult*obj.mses(1));
+%     iTop = find(obj.mses.*obj.nMSres <= mseMult*obj.mses(1)*obj.nMSres(1)); % TO TRY... or don't
         
 %     [~, ranks] = sort(obj.wastages(iTop), 'ascend');
-    [~, ranks] = sort(obj.matchLengths(iTop) - obj.wastages(iTop), 'descend');
+    
+%     [~, ranks] = sort(obj.matchLengths(iTop) - obj.wastages(iTop), 'descend');
+%     permuteRankings(obj, iTop, ranks, true);
+
+    % To try: if any of the top has wastage within 3*obj.stride of the top,
+    % reorder those by the matchLength - wastage
+    [~, ranks] = sort(obj.wastages(iTop), 'ascend');
     permuteRankings(obj, iTop, ranks, true);
+    
+    iTop2 = find(obj.wastages(iTop) - obj.wastages(iTop(1)) <= 3*obj.stride);
+    [~, ranks2] = sort(obj.matchLengths(iTop(iTop2)) - obj.wastages(iTop(iTop2)), 'descend');
+    permuteRankings(obj, iTop(iTop2), iTop(ranks2), true);
+    
+    % TO TRY: also prefer larger lag values, but put more emphasis on matchLength and wastage
+    % Use a stable sort to settle ties
+    matchLengthWeight = 1;    % Multiplicative weights
+    wastageWeight = 1;
+    lagWeight = 0.9;
+
+    [~, ranks3] = sort(...
+        obj.matchLengths(iTop(iTop2)) * matchLengthWeight - ...
+        obj.wastages(iTop(iTop2)) * wastageWeight + ...
+        obj.taus(iTop(iTop2)) * lagWeight, ...
+        'descend');
+    permuteRankings(obj, iTop(iTop2), iTop(ranks3), true);
 
     
-    
+
+
+
     % Re-ordering based on MSres for times if relatively high importance 
     % that are very close in lag value
     
@@ -83,8 +132,10 @@ function [t1, t2, c] = findLoop(obj)
 
 %     newiTop = 1:find(cumsum(obj.confs) >= confBand, 1);
     newiTop = find(obj.mses <= mseMult*obj.mses(1));
+%     newiTop = find(obj.mses.*obj.nMSres <= mseMult*obj.mses(1)*obj.nMSres(1)); % TO TRY... or don't
     
 %     iClose = find(abs(obj.s1s(newiTop) - obj.s1s(1)) <= obj.tauTol*obj.Fs);
+
 
     iFar = newiTop;
     
@@ -93,7 +144,8 @@ function [t1, t2, c] = findLoop(obj)
         iFar = setdiff(iFar, iClose);
         
     %     [~, reorder] = sort(i2(iClose), 'ascend');
-        [~, reorder] = sort(obj.nMSres(iClose), 'ascend');
+%         [~, reorder] = sort(obj.nMSres(iClose), 'ascend');
+        [~, reorder] = sort(obj.nMSres(iClose).*obj.mses(iClose), 'ascend');
         permuteRankings(obj, iClose, iClose(reorder), false);
     end
     obj.confs = sort(obj.confs, 'descend');  % Restore descending order
@@ -151,6 +203,7 @@ function permuteRankings(obj, i, f, permuteConf)
     obj.SVoldlags(i) = obj.SVoldlags(f);
     obj.SVspecDiff(i) = obj.SVspecDiff(f);
     obj.SVcutoff(i) = obj.SVcutoff(f);
+    obj.SVcutoff2(i) = obj.SVcutoff2(f);
     
     if(permuteConf)
         obj.confs(i) = obj.confs(f);

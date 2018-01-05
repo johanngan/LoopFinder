@@ -1,11 +1,11 @@
-function [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
+function [left, right, cutoff, cutoffOG] = findBestCluster(obj, specDiff, sSize)
 % Finds the region of time with the smallest values of specDiff, where a
 % region must be at least obj.minLoopLength seconds long
 %
 % dt is a vector of equal length to specDiff corresponding to the time
 % duration of each difference region
 
-    dt = ds/obj.Fs;
+    tSize = sSize/obj.Fs;
 
     % EXPERIMENTAL - keep taking the next best specDiff until a long enough
     % interval is found
@@ -22,7 +22,7 @@ function [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
     left = find(specDiff <= cutoff, 1, 'first');
     right = find(specDiff <= cutoff, 1, 'last');
     
-    while(sum(dt(left:right)) < obj.minLoopLength)
+    while(sum(tSize(left:right)) < obj.minLoopLength)
         
         if(k < length(specDiff))
             k = k+1;
@@ -40,16 +40,28 @@ function [left, right, cutoff] = findBestCluster(obj, specDiff, ds)
     end
     
     % Cutoff for wastage and matchLength calculation
-    rMedian = cutoff - min(specDiff);
-    kMedian = min(10, length(specDiff)/2);
-    cutoff1 = min(specDiff) + kMedian*rMedian;
+    cutoffOG = cutoff;
     
     kMax = round(obj.minLoopLength / obj.stride);
-    maxSDs = sortSD(end-kMax+1:end);
-    mRange = 0.05;
-    cutoff2 = mRange*(median(maxSDs) - median(sortSD(1:k))) + median(sortSD(1:k));
+    % TO TRY:
+    ignorePerc = 0.05;  % Top percentage to ignore
+    ignore = round(ignorePerc * length(specDiff));
+    kMaxPerc = 0.05;    % Top percentage from which to take the median
+    kMax = max( kMax, round(kMaxPerc * length(specDiff)) );
     
-    cutoff3 = 5;
+    maxSDs = sortSD(end-kMax-ignore+1:end-ignore);
+    mRange = 0.05;
+    cutoff1 = mRange*(median(maxSDs) - median(sortSD(1:k))) + median(sortSD(1:k));
+    
+    
+    rMedian = min(mean(specDiff(left:right)), median(specDiff(left:right))) - minSD;
+    kMedian = min( 5, max(1, 5/std(specDiff(left:right))) );
+%     kMedian = min( 4, max(2, 2/std(sortSD(1:min(2*k, length(specDiff))))) );    % Floor at 1, cap at 3, linear in between (RELU)
+%     kMedian = 2;    % Same as before
+    cutoff2 = minSD + kMedian*rMedian;
+    
+%     cutoff3 = 5;  % Works well, but is too loose for Moon
+    cutoff3 = obj.confRegularization;  %TO TRY: Based on theoretical expected MSE assuming randomness
     
     cutoff = max([cutoff1, cutoff2, cutoff3]);
     

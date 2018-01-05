@@ -1,4 +1,4 @@
-function [P, F, S, ds] = calcSpectrogram(obj, x)
+function [P, F, S, ds, sSize] = calcSpectrogram(obj, x)
 % S is the sample left endpoints, ds is the sample interval length of each chunk
 
 %     [P, F, T] = pspectrum(x, obj.Fs, 'spectrogram', ...
@@ -19,11 +19,13 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
     fmax = 10000;
 %     fmax = inf;
     
-    stride = round( (1-obj.overlapPercent/100)*obj.tres*obj.Fs );
+    sres = round(obj.tres * obj.Fs);
+    stride = round( (1-obj.overlapPercent/100)*sres );
     nS = ceil( length(x) / stride );
     S = zeros(1, nS);
     ds = zeros(1, length(S));
-    interval = 1:min(stride, length(x));
+%     interval = 1:min(stride, length(x));
+    interval = 1:min(sres, length(x));
     S(1) = interval(1);
     ds(1) = length(interval);
     
@@ -36,16 +38,23 @@ function [P, F, S, ds] = calcSpectrogram(obj, x)
     P(:, 1) = X;
     
     for i = 2:length(S)
-        interval = 1+(i-1)*stride:min(i*stride, length(x));
+%         interval = 1+(i-1)*stride:min(i*stride, length(x));
+        interval = 1+(i-1)*stride:min(sres + (i-1)*stride, length(x));
         S(i) = interval(1);
         ds(i) = length(interval);
         
         window = windowFunction(length(interval));
+%         [~, P(:, i)] = obj.calcSpectrum(...
+%             [window .* x(interval); ...
+%                 zeros(stride-length(interval), 1)], ...
+%             fmin, fmax);    % Zero-pad if last interval is too short
         [~, P(:, i)] = obj.calcSpectrum(...
             [window .* x(interval); ...
-                zeros(stride-length(interval), 1)], ...
+                zeros(sres-length(interval), 1)], ...
             fmin, fmax);    % Zero-pad if last interval is too short
     end
+    
+    sSize = diff([S, length(x)+1]); % Effective "size" of each interval, correcting for the overlap
 end
 
 function w = windowFunction(N)

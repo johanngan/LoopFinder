@@ -65,6 +65,7 @@ function specVis(obj, i, c)
             xlabel('Time');
             vertical(obj.SVS{i}(obj.SVleft{i})/obj.Fs, 'linestyle', '--', 'color', 'r');
             vertical(obj.SVS{i}(obj.SVright{i})/obj.Fs, 'linestyle', '--', 'color', 'r');
+            horizontal(obj.SVcutoff2{i}, 'linestyle', '--', 'color', 'c');
             horizontal(obj.SVcutoff{i}, 'linestyle', '--', 'color', 'g');
         end
 
