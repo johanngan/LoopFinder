@@ -6,7 +6,8 @@ function useDefaultParams(obj)
     obj.sDiffTol = .05;
     
     obj.minLoopLength = 5;
-    obj.tres = 2.5;
+%     obj.tres = 2.5;
+    obj.tres = 2^17 / 44100;    % ~3 seconds; makes fft lengths a power of 2 for Fs = 44100, 22050, etc.
     obj.overlapPercent = 50;
     
     obj.minTDiff = .1;

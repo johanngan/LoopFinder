@@ -11,7 +11,7 @@ function L = MSres(obj)
 end
 
 function weights = avgPwrWeights(audio)
-% Vector of average power of overlap region of an autocorrelation
+% Vector of average power of overlap region of an auto-ssres
 
     pows = (audio.^2)';
     pows = pows + flip(pows);

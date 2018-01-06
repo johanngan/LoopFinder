@@ -90,10 +90,20 @@ classdef LoopFinder < handle
         t1s     % Loop start points in seconds
         t2s     % Loop end points in seconds
         
-        % Estimation sensitivity
+        % Estimation and sensitivity
+        loopMode    % 0 for no manual estimation, 1 for double endpoint estimation, 
+                    % 2 for left endpoint estimation, 3 for right endpoint estimation
+        
+        s1_est
+        s2_est
+        
         m_tau   % Slopes for triangular weighting, per second deviation
         m_t1
         m_t2
+        
+        tauLims     % Range of acceptable values for tau, t1, t2
+        t1Lims
+        t2Lims
     end
     
     methods(Access = private)
@@ -104,6 +114,7 @@ classdef LoopFinder < handle
         removeFade(obj)
         
         L = MSres(obj)  % Normalized residual mean square error over lags
+        L = MSresNotAuto(obj, audio1, audio2)   % Normalized MSres between two different audio clips
         
         [vals, idx] = nMinCluster(obj, x)
         
@@ -123,7 +134,7 @@ classdef LoopFinder < handle
         [lag, L, s1, sDiff, wastage, matchLength, ...
             spectrograms, F, S, left, right, cutoff, cutoff2, oldlags, specDiff] ...
             = spectrumMSE(obj, lag)
-        c = calcConfidence(obj, mseVals)
+        c = calcConfidence(obj, mseVals, reg)
         
         
         [t1, t2, c] = findLoopEstEndpoints(obj)
@@ -288,7 +299,7 @@ classdef LoopFinder < handle
             obj.tau_est = tau_est;
         end
         
-        function set.t1_est(obj, t1_est)
+        function set.t1_est(obj, t1_est)            
             obj.t1_est = t1_est;
         end
         
@@ -435,7 +446,11 @@ classdef LoopFinder < handle
         end
         
         function tau_est = get.tau_est(obj)
-            tau_est = obj.tau_est;
+            if(~isempty(obj.tau_est))
+                tau_est = obj.tau_est;
+            else
+                tau_est = obj.t2_est - obj.t1_est;
+            end
         end
         
         function t1_est = get.t1_est(obj)
@@ -444,6 +459,80 @@ classdef LoopFinder < handle
         
         function t2_est = get.t2_est(obj)
             t2_est = obj.t2_est;
+        end
+        
+        function tauLims = get.tauLims(obj)
+            if(obj.loopMode == 1)
+                tau = obj.t2_est - obj.t1_est;
+            elseif(isempty(obj.tau_est))
+                tauLims = [];
+                return;
+            else
+                tau = obj.tau_est;
+            end
+
+            if(obj.p_tau == 1)
+                tauLims = [tau, tau];
+            elseif(obj.p_tau == 0)
+                tauLims = [tau-obj.r_tau, tau+obj.r_tau];
+            else
+                tauLims = [...
+                	max(tau-obj.r_tau, tau-1/obj.m_tau+1/obj.Fs), ...
+                	min(tau+obj.r_tau, tau+1/obj.m_tau-1/obj.Fs)];
+            end
+        end
+        
+        function t1Lims = get.t1Lims(obj)
+            if(isempty(obj.t1_est))
+                if(isempty(obj.t2_est))
+                    t1Lims = [];
+                else
+                    t1Lims = [0, max(0, obj.t2Lims(2)-obj.minLoopLength)];
+                end
+                
+                return;
+            end
+            
+            if(obj.p_t1 == 1)
+                t1Lims = [obj.t1_est, obj.t1_est];
+            elseif(obj.p_t1 == 0)
+                t1Lims = [obj.t1_est-obj.r_t1, obj.t1_est+obj.r_t1];
+            else
+                t1Lims = [...
+                    max(obj.t1_est-obj.r_t1, obj.t1_est-1/obj.m_t1+1/obj.Fs), ...
+                	min(obj.t1_est+obj.r_t1, obj.t1_est+1/obj.m_t1-1/obj.Fs)];
+            end
+        end
+        
+        function t2Lims = get.t2Lims(obj)
+            if(isempty(obj.t2_est))
+                if(isempty(obj.t1_est))
+                    t2Lims = [];
+                else
+                    t2Lims = [min(obj.duration, obj.t1Lims(1)+obj.minLoopLength), ...
+                        obj.duration];
+                end
+                
+                return;
+            end
+            
+            if(obj.p_t2 == 1)
+                t2Lims = [obj.t2_est, obj.t2_est];
+            elseif(obj.p_t2 == 0)
+                t2Lims = [obj.t2_est-obj.r_t2, obj.t2_est+obj.r_t2];
+            else
+                t2Lims = [...
+                    max(obj.t2_est-obj.r_t2, obj.t2_est-1/obj.m_t2+1/obj.Fs), ...
+                	min(obj.t2_est+obj.r_t2, obj.t2_est+1/obj.m_t2-1/obj.Fs)];
+            end
+        end
+        
+        function s1_est = get.s1_est(obj)
+            s1_est = obj.findSample(obj.t1_est);
+        end
+        
+        function s2_est = get.s2_est(obj)
+            s2_est = obj.findSample(obj.t2_est);
         end
         
         function r_tau = get.r_tau(obj)
@@ -514,6 +603,24 @@ classdef LoopFinder < handle
             stride = obj.tres * (1 - obj.overlapPercent/100);
         end
         
+        function loopMode = get.loopMode(obj)
+            if(~isempty(obj.t1_est) && ~isempty(obj.t2_est))
+                loopMode = 1;
+                return;
+            end
+
+            if(~isempty(obj.t1_est) && isempty(obj.t2_est))
+                loopMode = 2;
+                return;
+            end
+
+            if(isempty(obj.t1_est) && ~isempty(obj.t2_est))
+                loopMode = 3;
+                return;
+            end
+            
+            loopMode = 0;
+        end
         
         
         

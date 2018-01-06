@@ -10,21 +10,24 @@ function [t1, t2, c] = findLoop(obj)
     end
     
     % Use the endpoint estimates if given
-    if(~isempty(obj.t1_est) && ~isempty(obj.t2_est))
+    if(obj.loopMode ~= 0)
         [t1, t2, c] = obj.findLoopEstEndpoints();
         return;
     end
-    
-    if(~isempty(obj.t1_est) && isempty(obj.t2_est))
-        [t1, t2, c] = obj.findLoopEstLeftEndpoint();
-        return;
-    end
-    
-    if(isempty(obj.t1_est) && ~isempty(obj.t2_est))
-        [t1, t2, c] = obj.findLoopEstRightEndpoint();
-        return;
-    end
+%     switch(obj.loopMode)
+%         case 1
+%             [t1, t2, c] = obj.findLoopEstEndpoints();
+%             return;
+%         case 2
+%             [t1, t2, c] = obj.findLoopEstLeftEndpoint();
+%             return;
+%         case 3
+%             [t1, t2, c] = obj.findLoopEstRightEndpoint();
+%             return;
+%     end
 
+    % Execute mode 0...
+    
     % Initial selection via normalized MSres
     msres = obj.MSres();
     sLeftIgnore = round(obj.leftIgnore*obj.Fs);

@@ -34,7 +34,7 @@ function testLoop(obj, i, timeBuffer, t1, t2)
     sampleBuffer = round(timeBuffer * obj.Fs);
     l1 = max(1, s2 - sampleBuffer);
     l2 = s2;
-    l3 = s1;
+    l3 = max(2, s1);
     l4 = min(obj.l, s1 + sampleBuffer);
     
     % Assemble the audio clip for seamless playback
