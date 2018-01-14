@@ -1,19 +1,19 @@
-function [vals, idx] = nMinCluster(obj, x)
-% Returns the obj.nBest minimum elements of x, where the indices are
+function [vals, idx] = nMinCluster(obj, x, n)
+% Returns the n minimum elements of x, where the indices are
 % separated by at least obj.minTDiff*obj.Fs
 
     if(obj.nBest < 0)
         error('nBest must a nonnegative integer');
     end
     
-    if(obj.nBest == 0)
+    if(n == 0)
         vals = [];
         idx = [];
         return;
     end
 
     % If n = 1, just use the min function
-    if(obj.nBest == 1)
+    if(n == 1)
         [vals, idx] = min(x);
         return;
     end
@@ -27,7 +27,7 @@ function [vals, idx] = nMinCluster(obj, x)
     vals = x(1);
     idx = i(1);    % Column until returned
     
-    for j = 2:obj.nBest
+    for j = 2:n
         maxj = find(all(abs(i - idx) >= obj.minTDiff*obj.Fs, 1), 1);
         if(maxj)
             idx = [idx; i(maxj)];

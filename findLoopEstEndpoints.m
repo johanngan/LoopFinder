@@ -60,27 +60,39 @@ function [t1, t2, c] = findLoopEstEndpoints(obj)
 %     [loss, i] = sort(msres, 'ascend');
     
     % Take the nBest lag values
-    [obj.nMSres, i] = obj.nMinCluster(msres);
+    [obj.nMSres, i] = obj.nMinCluster(msres, obj.nBest);
     lags = lags(i);
-    obj.lags = lags;
+    obj.baseLags = lags;
 %     obj.nMSres = loss(1:obj.nBest);
 %     lags = lags(i(1:obj.nBest));
     
-    obj.s1s = zeros(size(lags));
-    obj.sDiffs = zeros(size(lags));
+    obj.lags = cell(size(lags));
+    obj.s1s = cell(size(lags));
+    obj.sDiffs = cell(size(lags));
     
     for j = 1:length(lags)
         lagVal = lags(j);
         s1s = caps(obj.findSample(max(obj.t2Lims(1)-lagVal/obj.Fs, obj.t1Lims(1))), ...
             1, obj.l) : caps(obj.findSample(min(obj.t1Lims(2), obj.t2Lims(2)-lagVal/obj.Fs)), 1, obj.l);
-        [obj.lags(j), obj.s1s(j), obj.sDiffs(j)] = obj.findLoopPoint(lagVal, s1s);  % MODIFY findLoopPoint() to account for m_t1 and m_t2!
+        [obj.lags{j}, obj.s1s{j}, obj.sDiffs{j}] = obj.findLoopPoint(lagVal, s1s);
     end
     
     
-    obj.s2s = obj.s1s + obj.lags;
-
-    t1 = obj.findTime(obj.s1s);
-    t2 = obj.findTime(obj.s2s);
+    obj.s2s = cell(size(obj.s1s));
+    t1 = zeros(size(obj.s1s));
+    t2 = zeros(size(t1));
+    for tau = 1:length(obj.s1s)
+        obj.s2s{tau} = obj.s1s{tau} + obj.lags{tau};
+        
+        t1(tau) = obj.findTime(obj.s1s{tau}(1));
+        t2(tau) = obj.findTime(obj.s1s{tau}(1));
+    end
+    
+    
+%     obj.s2s = obj.s1s + obj.lags;
+% 
+%     t1 = obj.findTime(obj.s1s);
+%     t2 = obj.findTime(obj.s2s);
     obj.confs = obj.calcConfidence(obj.nMSres, 0.1);    % Mess with regularization here
     c = obj.confs;
 end

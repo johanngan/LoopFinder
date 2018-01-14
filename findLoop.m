@@ -32,17 +32,18 @@ function [t1, t2, c] = findLoop(obj)
     msres = obj.MSres();
     sLeftIgnore = round(obj.leftIgnore*obj.Fs);
     sRightIgnore = round(obj.rightIgnore*obj.Fs);
-    [~, i1] = obj.nMinCluster(msres(1+sLeftIgnore:end-sRightIgnore));
-    obj.lags = i1+sLeftIgnore-1;
+    [~, i1] = obj.nMinCluster(msres(1+sLeftIgnore:end-sRightIgnore), obj.nBest);
+    obj.baseLags = i1+sLeftIgnore-1;
     
     % Non-length-normalized and length-normalized MSres values for the best lags
     obj.nMSres = msres(i1+sLeftIgnore);
-    obj.rawMSres = obj.nMSres .* (obj.l - obj.lags);
+    obj.rawMSres = obj.nMSres .* (obj.l - obj.baseLags);
     
     % Ranking by spectrum MSE
     obj.mses = zeros(1, obj.nBest);
-    obj.s1s = zeros(size(obj.mses));
-    obj.sDiffs = zeros(size(obj.mses));
+    obj.lags = cell(size(obj.mses));
+    obj.s1s = cell(size(obj.mses));
+    obj.sDiffs = cell(size(obj.mses));
     obj.wastages = zeros(size(obj.mses));
     obj.matchLengths = zeros(size(obj.mses));
     
@@ -57,11 +58,15 @@ function [t1, t2, c] = findLoop(obj)
     obj.SVcutoff2 = cell(size(obj.mses));
     
     for j = 1:obj.nBest
-        [obj.lags(j), obj.mses(j), obj.s1s(j), obj.sDiffs(j), obj.wastages(j), obj.matchLengths(j), ...
+        [obj.lags{j}, obj.mses(j), obj.s1s{j}, obj.sDiffs{j}, obj.wastages(j), obj.matchLengths(j), ...
          obj.SVspectrograms{j}, obj.SVF{j}, obj.SVS{j}, ...
          obj.SVleft{j}, obj.SVright{j}, obj.SVcutoff{j}, obj.SVcutoff2{j}, ...
          obj.SVoldlags{j}, obj.SVspecDiff{j}] = ...
-            obj.spectrumMSE(obj.lags(j));
+            obj.spectrumMSE(obj.baseLags(j));
+    end
+    
+    for b = 1:length(obj.lags)
+        obj.baseLags(b) = obj.lags{b}(1);
     end
     
 %     [obj.mses, i2] = sort(obj.mses, 'ascend');
@@ -118,7 +123,7 @@ function [t1, t2, c] = findLoop(obj)
     [~, ranks3] = sort(...
         obj.matchLengths(iTop(iTop2)) * matchLengthWeight - ...
         obj.wastages(iTop(iTop2)) * wastageWeight + ...
-        obj.taus(iTop(iTop2)) * lagWeight, ...
+        obj.baseTaus(iTop(iTop2)) * lagWeight, ...
         'descend');
     permuteRankings(obj, iTop(iTop2), iTop(ranks3), true);
 
@@ -143,7 +148,7 @@ function [t1, t2, c] = findLoop(obj)
     iFar = newiTop;
     
     while(length(iFar) > 1)
-        iClose = iFar(abs(obj.lags(newiTop(iFar)) - obj.lags(iFar(1))) <= obj.tauTol*obj.Fs);
+        iClose = iFar(abs(obj.baseLags(newiTop(iFar)) - obj.baseLags(iFar(1))) <= obj.tauTol*obj.Fs);
         iFar = setdiff(iFar, iClose);
         
     %     [~, reorder] = sort(i2(iClose), 'ascend');
@@ -170,11 +175,16 @@ function [t1, t2, c] = findLoop(obj)
 %     obj.SVspecDiff(iClose) = obj.SVspecDiff(reorder);
 % %     obj.confs(iClose) = obj.confs(reorder); DON'T DO THIS
 
+    obj.s2s = cell(size(obj.s1s));
+    t1 = zeros(size(obj.s1s));
+    t2 = zeros(size(t1));
+    for tau = 1:length(obj.s1s)
+        obj.s2s{tau} = obj.s1s{tau} + obj.lags{tau};
+        
+        t1(tau) = obj.findTime(obj.s1s{tau}(1));
+        t2(tau) = obj.findTime(obj.s1s{tau}(1));
+    end
 
-    obj.s2s = obj.s1s + obj.lags;
-
-    t1 = obj.findTime(obj.s1s);
-    t2 = obj.findTime(obj.s2s);
     c = obj.confs;
 end
 
@@ -190,9 +200,18 @@ function permuteRankings(obj, i, f, permuteConf)
     end
 
     obj.mses(i) = obj.mses(f);
-    obj.lags(i) = obj.lags(f);
-    obj.s1s(i) = obj.s1s(f);
-    obj.sDiffs(i) = obj.sDiffs(f);
+    obj.baseLags(i) = obj.baseLags(f);
+%     obj.lags(i) = obj.lags(f);
+%     obj.s1s(i) = obj.s1s(f);
+%     obj.sDiffs(i) = obj.sDiffs(f);
+    store_lags = obj.lags;
+    store_s1s = obj.s1s;
+    store_sDiffs = obj.sDiffs;
+    for entry = 1:length(i)
+        obj.lags{i(entry)} = store_lags{f(entry)};
+        obj.s1s{i(entry)} = store_s1s{f(entry)};
+        obj.sDiffs{i(entry)} = store_sDiffs{f(entry)};
+    end
     obj.wastages(i) = obj.wastages(f);
     obj.matchLengths(i) = obj.matchLengths(f);
     obj.rawMSres(i) = obj.rawMSres(f);

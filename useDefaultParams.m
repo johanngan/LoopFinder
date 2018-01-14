@@ -1,7 +1,9 @@
 function useDefaultParams(obj)
     obj.leftIgnore = 5;
     obj.rightIgnore = 5;
-    obj.nBest = 15;
+%     obj.nBest = 15;
+    obj.nBest = 10;
+    obj.nBestPairs = 5;
 %     obj.sDiffTol = inf;
     obj.sDiffTol = .05;
     

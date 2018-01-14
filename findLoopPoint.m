@@ -46,21 +46,28 @@ function [lag, s1, sDiff] = findLoopPoint(obj, lag, s1s)
 
     % Get the best possible sample difference out of s1s, accounting for
     % any weighting
-    [s1, sDiff] = getMinSampleDiff(obj, s1s, lag, sampleDiffs);
+    [s1, sDiff] = getMinSampleDiffs(obj, s1s, lag, sampleDiffs);
 
-    % If this works, or there is no lag variance, return. If not, use another method
-    if(sDiff <= obj.sDiffTol || obj.p_tau == 1)
+    % If enough of them work, or there is no lag variance, return. If not, use another method
+    ogS1 = s1(1);
+    ogSDiff = sDiff(1);
+    ogLag = lag;
+    
+    s1 = s1(sDiff <= obj.sDiffTol);
+    lag = repelem(lag, length(s1));
+%     if(sDiff <= obj.sDiffTol || obj.p_tau == 1)
+%         return;
+%     end
+    if(length(s1) >= obj.nBestPairs)
         return;
     end
-    
-    ogS1 = s1;
-    ogSDiff = sDiff;
-
+        
     negFlag = false;    % Flag for only decrementing dlag
     posFlag = false;    % Flag for only incrementing dlag
     dlag = 1;
-    while(sDiff > obj.sDiffTol && abs(dlag) <= obj.minTDiff*obj.Fs/2)
-        newLag = lag + dlag;
+%     while(sDiff > obj.sDiffTol && abs(dlag) <= obj.minTDiff*obj.Fs/2)
+    while(length(s1) < obj.nBestPairs && abs(dlag) <= obj.minTDiff*obj.Fs/2)
+        newLag = ogLag + dlag;
         
         % Change s1
         sampleDiffs1 = calcSampleDiffs(obj.audio, s1s-dlag, newLag);
@@ -78,27 +85,55 @@ function [lag, s1, sDiff] = findLoopPoint(obj, lag, s1s)
 
         % Get the best possible sample difference out of s1s, accounting for
         % any weighting
-        [s1_1, sDiff1] = getMinSampleDiff(obj, s1s-dlag, newLag, sampleDiffs1);
-        [s1_2, sDiff2] = getMinSampleDiff(obj, s1s, newLag, sampleDiffs2);
+        s1Add = [];
+        sDiffAdd = [];
+        [s1_1, sDiff1] = getMinSampleDiffs(obj, s1s-dlag, newLag, sampleDiffs1);
+        [s1_2, sDiff2] = getMinSampleDiffs(obj, s1s, newLag, sampleDiffs2);
     
 %         [~, s1_idx1] = min(sampleDiffs1);
 %         [~, s1_idx2] = min(sampleDiffs2);        
 %         sDiff1 = sampleDiffs1(s1_idx1);
 %         sDiff2 = sampleDiffs2(s1_idx2);
 
-        if(~isempty(sDiff1) && (isempty(sDiff2) || sDiff1 < sDiff2))
-            sDiff = sDiff1;
-%             s1 = s1s(s1_idx1)-dlag;
-            s1 = s1_1;
-        elseif(~isempty(sDiff2))
-            sDiff = sDiff2;
-%             s1 = s1s(s1_idx2);
-            s1 = s1_2;
-        else
+%         if(~isempty(sDiff1) && (isempty(sDiff2) || sDiff1 < sDiff2))
+%             sDiff = sDiff1;
+% %             s1 = s1s(s1_idx1)-dlag;
+%             s1 = s1_1;
+%         elseif(~isempty(sDiff2))
+%             sDiff = sDiff2;
+% %             s1 = s1s(s1_idx2);
+%             s1 = s1_2;
+
+        if(~isempty(sDiff1))
+            toAdd = find(sDiff1 <= obj.sDiffTol);
+            s1Add = [s1Add, s1_1(toAdd)];
+            sDiffAdd = [sDiffAdd, sDiff1(toAdd)];
+        end
+        if(~isempty(sDiff2))
+            toAdd = find(sDiff2 <= obj.sDiffTol);
+            s1Add = [s1Add, s1_2(toAdd)];
+            sDiffAdd = [sDiffAdd, sDiff2(toAdd)];
+        end
+        
+        if(isempty(sDiff1) && isempty(sDiff2))
             % Both empty
             break;
         end
         
+        
+        nLeft = obj.nBestPairs - length(s1);
+        if(length(sDiffAdd) > nLeft)
+            [sDiffAdd, addIdx] = sort(sDiffAdd, 'ascend');
+            sDiffAdd(1:nLeft);
+            s1Add = s1Add(addIdx(1:nLeft));
+        end
+        
+        if(~isempty(s1Add))
+            s1 = [s1, s1Add];
+            sDiff = [sDiff, sDiffAdd];
+            lag = [lag, repelem(newLag, length(s1Add))];
+        end
+            
         % If dlag is nonpositive, increment the absolute value by one. If
         % dlag is positive, try the negative of it. If either flag is
         % active, instead increment accordingly.
@@ -115,12 +150,14 @@ function [lag, s1, sDiff] = findLoopPoint(obj, lag, s1s)
         % Extra conditions for manually estimated lag behavior to turn on 
         % posFlag or negFlag, and break if necessary
         if(~isempty(obj.tauLims))
-            if(lag+dlag < obj.Fs*obj.tauLims(1))    % Lag is too small
+%             if(ogLag+dlag < obj.Fs*obj.tauLims(1))    % Lag is too small
+            if(newLag < obj.Fs*obj.tauLims(1))    % Lag is too small
                 posFlag = true;
                 dlag = abs(dlag) + 1;
             end
             
-            if(lag+dlag > obj.Fs*obj.tauLims(2))    % Lag is too big
+%             if(ogLag+dlag > obj.Fs*obj.tauLims(2))    % Lag is too big
+            if(newLag > obj.Fs*obj.tauLims(2))    % Lag is too big
                 negFlag = true;
                 dlag = -abs(dlag) - 1;
             end
@@ -132,11 +169,13 @@ function [lag, s1, sDiff] = findLoopPoint(obj, lag, s1s)
         end
     end
     
-    if(sDiff <= obj.sDiffTol)   % Succeeded
-        lag = newLag;   % Perturbed lag
-    else    % Failed
+%     if(sDiff <= obj.sDiffTol)   % Succeeded
+%         lag = newLag;   % Perturbed lag
+%     else    % Failed
+    if(isempty(s1))     % Failed
         sDiff = ogSDiff;
         s1 = ogS1;
+        lag = ogLag;
     end
 end
 
@@ -149,9 +188,12 @@ function sampDiffs = calcSampleDiffs(x, s1s, lag)
     
     first = find(s1s >= 1, 1, 'first');
     last = find(s1s+lag <= length(x), 1, 'last');
+%     sampDiffs0 = [inf(first-1, 1); ...
+%         max( abs(x(s1s(first:last), :) - x(s1s(first:last)+lag, :)) , [], 2); ...
+%         inf(length(x)-last, 1)];
     sampDiffs0 = [inf(first-1, 1); ...
         max( abs(x(s1s(first:last), :) - x(s1s(first:last)+lag, :)) , [], 2); ...
-        inf(length(x)-last, 1)];
+        inf(length(s1s)-last, 1)];
 %     sampDiffs = max( abs(x(max(1, s1s)) - x(min(length(x), s1s+lag))) , [], 2);
 
     if(r == 0)
@@ -164,9 +206,12 @@ function sampDiffs = calcSampleDiffs(x, s1s, lag)
             sampDiffs(i) = max(sampDiffs0(left:right));
         end
     end
+    
+    % Make into a row vector, like s1s
+    sampDiffs = sampDiffs';
 end
 
-function [s1, sDiff] = getMinSampleDiff(obj, s1s, lag, sampleDiffs)
+function [s1, sDiff] = getMinSampleDiffs(obj, s1s, lag, sampleDiffs)
 % Determine s1 (and s2) and sDiff, accounting for manual estimation if
 % necessary
 
@@ -190,7 +235,10 @@ function [s1, sDiff] = getMinSampleDiff(obj, s1s, lag, sampleDiffs)
             toMin = toMin .* weights2;
         end
         
-        [~, s1_idx] = min(toMin);
+        [~, s1_idx] = obj.nMinCluster(toMin, obj.nBestPairs);
+%         [~, minIs] = sort(toMin, 'ascend');
+%         s1_idx = minIs(1:obj.nBestPairs);
+%         [~, s1_idx] = min(toMin);
         
         sDiff = sampleDiffs(s1_idx);
         s1 = s1s(s1_idx);

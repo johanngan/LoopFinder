@@ -1,6 +1,10 @@
-function testLoop(obj, i, timeBuffer, t1, t2)
-    if(nargin < 3)
+function testLoop(obj, i, l, timeBuffer, t1, t2)
+    if(nargin < 4)
         timeBuffer = obj.timeBuffer;
+    end
+    
+    if(nargin < 3)
+        l = 1;
     end
 
     if(nargin < 2)
@@ -8,12 +12,12 @@ function testLoop(obj, i, timeBuffer, t1, t2)
     end
     
     manual = false;
-    if(nargin < 5)
-        t1 = obj.t1s(i);
-        t2 = obj.t2s(i);
+    if(nargin < 6)
+        t1 = obj.t1s{i}(l);
+        t2 = obj.t2s{i}(l);
         
-        s1 = obj.s1s(i);
-        s2 = obj.s2s(i);
+        s1 = obj.s1s{i}(l);
+        s2 = obj.s2s{i}(l);
     else
         fprintf('\nMANUAL LOOP ENTRY:');
         manual = true;
@@ -30,7 +34,7 @@ function testLoop(obj, i, timeBuffer, t1, t2)
     end
     fprintf('\n\nTesting loop...\n');
     
-    lag = s2 - s1;
+%     lag = s2 - s1;
     sampleBuffer = round(timeBuffer * obj.Fs);
     l1 = max(1, s2 - sampleBuffer);
     l2 = s2;

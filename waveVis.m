@@ -1,10 +1,14 @@
-function waveVis(obj, i, c)
+function waveVis(obj, i, l, c)
 % Visualize the waveform comparison of the ith best lag value, for the
 % cth channel. If c is not 1 or 2, then both channels will be used. i
 % defaults to 1.
 
-    if(nargin < 3)
+    if(nargin < 4)
         c = 0;
+    end
+    
+    if(nargin < 3)
+        l = 1;
     end
     
     if(nargin < 2)
@@ -22,14 +26,14 @@ function waveVis(obj, i, c)
         switch(c)
             case 0
                 subplot(1, 2, 1);
-                drawWave(obj, i, 1, invert);
+                drawWave(obj, i, l, 1, invert);
 
                 subplot(1, 2, 2);
-                drawWave(obj, i, 2, invert);
+                drawWave(obj, i, l, 2, invert);
             case 1
-                drawWave(obj, i, 1, invert);
+                drawWave(obj, i, l, 1, invert);
             case 2
-                drawWave(obj, i, 2, invert);
+                drawWave(obj, i, l, 2, invert);
         end
 
         key = string(readkey('InputType', 'keyboard', 'ValidInputs', ...
@@ -38,12 +42,12 @@ function waveVis(obj, i, c)
     end
 end
 
-function drawWave(obj, i, channel, invert)
+function drawWave(obj, i, l, channel, invert)
     if(nargin < 4)
         invert = false;
     end
 
-    lag = obj.lags(i);
+    lag = obj.lags{i}(l);
     samps = 1:obj.l-lag;
     times = obj.findTime(samps);
     
@@ -62,9 +66,9 @@ function drawWave(obj, i, channel, invert)
         hold off;
         first = 'First'; second = 'Second';
     end
-    vertical(obj.t1s(i), 'linestyle', '--', 'color', 'g');
+    vertical(obj.t1s{i}(l), 'linestyle', '--', 'color', 'g');
     legend(first, second, 'Loop Point');
     
     xlabel('Time (s)');
-    title(sprintf('Lag = %fs, Channel %i', obj.taus(i), channel));
+    title(sprintf('Lag = %fs, Channel %i', obj.taus{i}(l), channel));
 end

@@ -1,5 +1,5 @@
 function [lag, s1, sDiff] = findLoopPointSpecDiff(obj, lag, specDiff, left, right, S, ds)
-% Finds the best sample at which to loop for a given lag value, and the
+% Finds the nBestPairs best samples at which to loop for a given lag value, and the
 % sample difference between the loop start and end points. Requires that
 % the sample difference is at most sDiffTol
 

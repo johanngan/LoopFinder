@@ -10,10 +10,12 @@ classdef LoopFinder < handle
         % Loop selection parameters
         leftIgnore  % In seconds
         rightIgnore
-        nBest
+        nBest   % For lag values
+        nBestPairs   % For sample pairs per lag value
         sDiffTol    % For loop start and end points
         
         % Loop point results
+        baseLags
         lags
         s1s
         s2s
@@ -31,7 +33,7 @@ classdef LoopFinder < handle
         overlapPercent  % Window overlap for spectrograms
         
         % Clustering parameters
-        minTDiff    % For non-maximum suppression for nBest selection from MSres values
+        minTDiff    % For non-maximum suppression for nBest selection from MSres values, and for nBestPairs selection from s1 selection
         dBLevel     % Decibel level to set the mean volume of audio to. Anything differences where the audio is below 0 dB will be ignored.
             powRef  % Reference level for decibel calculation
         minRangeCutoff  % Minimum percentage of the range of values for finding low-difference regions in spectrum MSE
@@ -86,6 +88,7 @@ classdef LoopFinder < handle
         stride  % Strides for spectrogram windows, in seconds
         
         % Loop point results
+        baseTaus
         taus    % Loop lengths in seconds
         t1s     % Loop start points in seconds
         t2s     % Loop end points in seconds
@@ -116,7 +119,7 @@ classdef LoopFinder < handle
         L = MSres(obj)  % Normalized residual mean square error over lags
         L = MSresNotAuto(obj, audio1, audio2)   % Normalized MSres between two different audio clips
         
-        [vals, idx] = nMinCluster(obj, x)
+        [vals, idx] = nMinCluster(obj, x, n)
         
         ys = smoothen(obj, y, rAvg)
         [F, X] = calcSpectrum(obj, x, fmin, fmax)
@@ -158,9 +161,9 @@ classdef LoopFinder < handle
                 Fs = [];
             end
             
-            obj.lags = [];
-            obj.s1s = [];
-            obj.s2s = [];
+            obj.lags = {};
+            obj.s1s = {};
+            obj.s2s = {};
             obj.mses = [];
             obj.confs = [];
             obj.sDiffs = [];
@@ -587,16 +590,29 @@ classdef LoopFinder < handle
             nChannels = size(obj.audio, 2);
         end
         
+        function baseTaus = get.baseTaus(obj)
+            baseTaus = obj.baseLags / obj.Fs;
+        end
+        
         function taus = get.taus(obj)
-            taus = obj.lags / obj.Fs;
+            taus = cell(size(obj.lags));
+            for i = 1:length(taus)
+                taus{i} = obj.lags{i} / obj.Fs;
+            end
         end
         
         function t1s = get.t1s(obj)
-            t1s = obj.findTime(obj.s1s);
+            t1s = cell(size(obj.s1s));
+            for i = 1:length(t1s)
+                t1s{i} = obj.findTime(obj.s1s{i});
+            end
         end
         
         function t2s = get.t2s(obj)
-            t2s = obj.findTime(obj.s2s);
+            t2s = cell(size(obj.s2s));
+            for i = 1:length(t2s)
+                t2s{i} = obj.findTime(obj.s2s{i});
+            end
         end
         
         function stride = get.stride(obj)
@@ -628,10 +644,10 @@ classdef LoopFinder < handle
         useDefaultParams(obj)
         [t1, t2, c] = findLoop(obj)
         [t1, t2, c] = loop(obj, filename)
-        testLoop(obj, i, timeBuffer, t1, t2)
+        testLoop(obj, i, l, timeBuffer, t1, t2)
         fullPlayback(obj)
         specVis(obj, i, c)
-        waveVis(obj, i, c)
+        waveVis(obj, i, l, c)
         fadeLength = detectFade(obj, audio, Fs)
     end
 end
