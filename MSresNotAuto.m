@@ -48,8 +48,8 @@ function weights = avgPwrWeights(x1, x2, reg)
                     flip(cumsum(flip(pShort(2:end))))];
     
     totPowsLong = zeros(1, m+n-1);
-    totPowsLong(1:m) = cumsum(flip(pLong(n:end)));    % (m+n-1) - (m-1) == n
-    totPowsLong(n+1:end) = flip(cumsum(pLong(1:m-1)));  % (m+n-1) - (m-2) == n+1
+    totPowsLong(1:m) = cumsum(flip(pLong(end-(m-1):end)));    % (m+n-1) - (m-1) == n
+    totPowsLong(end-(m-2):end) = flip(cumsum(pLong(1:m-1)));  % (m+n-1) - (m-2) == n+1
     
     for i = m+1:n     % (m+n-1) - (m-1) == n
         totPowsLong(i) = totPowsLong(i-1) - pLong(m+n+1-i) + pLong(n+1-i);
