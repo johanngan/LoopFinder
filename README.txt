@@ -1,4 +1,4 @@
-This is research code, and is NOT INTENDED FOR OUTSIDE USE.
+This code is meant purely as research code, and has very minor visualization dependencies (e.g. drawing a vertical line) that aren't included in this repo. Sorry. If for some reason you actually need to run this code, removing or recreating problematic function calls shouldn't break anything.
 
 Implements an algorithm for analyzing audio data for pairs of similar regions of time.
 1. A sliding mean square difference, normalized by overlap length and average power level, is used for course searching.
